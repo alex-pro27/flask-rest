@@ -1,0 +1,5 @@
+.idea
+*.pyc
+__pycache__
+dist
+flask_rest.egg-info

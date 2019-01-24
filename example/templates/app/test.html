@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <title>Document</title>
+</head>
+<body>
+<h1>test chat</h1>
+
+<div id="reg_block">
+    <input type="text" id="input_username" placeholder="Username">
+    <input type="button" id="button_register" value="Register">
+</div>
+<div id="chat_block" style="display: none">
+    <h3 id="username"></h3>
+    <div id="chat_body"></div>
+    <input type="text" id="message_input" placeholder="Message">
+    <button id="send_button">Send</button>
+</div>
+
+</body>
+
+<script type="text/javascript" src="/static/flask_rest/js/socket.io.min.js"></script>
+<script type="text/javascript" charset="utf-8">
+
+    let username = "";
+    let socket;
+
+    function intChat() {
+
+        document.getElementById("reg_block").remove();
+        document.getElementById("chat_block").style.display = 'block';
+        document.getElementById("username").innerText = username;
+
+        socket = io.connect('http://' + document.domain + ':' + location.port + '/test-chat', {rememberTransport: false});
+        socket.on("connect", () => {
+          console.log("connected");
+          socket.emit("send_info", {username: username});
+
+          socket.on('message', (data) => {
+             console.log("message", data);
+             addMessage(data);
+          });
+
+          socket.on('pers_message', (data) => {
+             console.log("message", data);
+             data.message = `Personal message -> ${data.message}`;
+             addMessage(data);
+          });
+
+          socket.on('send_pers_message_error', (data) => {
+             console.log("message", data);
+             data.username = "system message";
+             addMessage(data);
+          });
+
+          socket.on('leave_user', (data) => {
+             console.log("message", data);
+             data.message = `User ${data.username} has left the chat`;
+             data.username = "System message";
+             addMessage(data);
+          });
+
+          socket.on('joined_new_user', (data) => {
+             console.log("message", data);
+             data.message = `User ${data.username} joined our chat!`;
+             data.username = "System message";
+             addMessage(data);
+          });
+        });
+
+        socket.on("disconnect", () => {
+          console.log("disconnect");
+          socket.off("message");
+          socket.off("send_pers_message_error");
+          socket.off("leave_user");
+          socket.off("pers_message");
+          socket.off("joined_new_user");
+        });
+    }
+
+    function addMessage({username, message}) {
+      let messageBlock = document.getElementById("chat_body");
+      let time = new Date();
+      let mes = document.createElement('p');
+      mes.innerHTML = `<span style="font-weight: bold">${time.toLocaleString()} ${username}</span>: ${message}<span></span>`;
+      messageBlock.appendChild(mes);
+    }
+
+    document.getElementById("send_button").onclick = () => {
+      let message = document.getElementById("message_input").value;
+      if (message) {
+        let for_user = message.match(/<(.*)>/i);
+        if (for_user) {
+          socket.emit("pers_message", {
+            message: message.replace(/<(.*)>/gi, "").trim(),
+            username: username,
+            for_user: for_user[1]
+          });
+        }
+        else {
+          socket.emit("message", {
+            message: message.trim(),
+            username: username
+          });
+        }
+      }
+      else {
+        alert("Please enter message!");
+      }
+      document.getElementById("message_input").value = "";
+      console.log(socket);
+    };
+
+    document.getElementById("button_register").onclick = () => {
+      username = document.getElementById("input_username").value;
+      console.log(username);
+      if(username) {
+        intChat();
+      }
+      else {
+        alert("Please, enter your name!")
+      }
+    }
+
+</script>
+</html>
